@@ -6,19 +6,25 @@ export const useCanvas = () => {
     const nextId = ref(1)
     const nextZIndex = ref(1)
 
+    const generateUniqueId = () => {
+        return nextId.value++
+    }
+
     const createElement = (type, x, y) => {
         return {
-            id: nextId.value++,
+            id: generateUniqueId(),
             type,
             x,
             y,
             width: 100,
             height: 100,
             rotation: 0,
-            zIndex: nextZIndex.value++,
-            backgroundColor: type === 'text' ? null : '#EEEEEE',
+            zIndex: 1,
+            backgroundColor: type === 'text' ? 'transparent' : '#EEEEEE',
             borderColor: '#000000',
             borderWidth: 1,
+            borderStyle: 'solid', // Adicionando estilo de borda padrão
+            borderRadius: 0,
             textColor: '#000000',
             fontSize: 16,
             fontFamily: 'Arial',
@@ -33,6 +39,7 @@ export const useCanvas = () => {
     }
 
     const removeElements = (elementIds) => {
+        console.log('elementIds', elementIds)
         canvasElements.value = canvasElements.value.filter(
             element => !elementIds.has(element.id)
         )

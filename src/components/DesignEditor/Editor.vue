@@ -34,6 +34,13 @@ const FONT_SIZES = [
     8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72
 ]
 
+const BORDER_STYLES = [
+    { value: 'solid', label: 'Sólida' },
+    { value: 'dashed', label: 'Tracejada' },
+    { value: 'dotted', label: 'Pontilhada' },
+    { value: 'double', label: 'Dupla' }
+]
+
 // ==================== Estado Local ====================
 const dragPreview = ref({
     visible: false,
@@ -220,12 +227,21 @@ const handleCopy = () => {
     }
 }
 
+
 const handlePaste = () => {
     const newElements = pasteElements()
     if (newElements?.length) {
         canvasElements.value.push(...newElements)
         clearSelection()
         newElements.forEach(element => addToSelection(element.id))
+        saveState()
+    }
+}
+
+const handleDelete = () => {
+    if (hasSelection.value) {
+        removeElements(selectedElementIds.value)
+        clearSelection()
         saveState()
     }
 }
@@ -386,7 +402,7 @@ onMounted(() => {
     <div class="flex flex-col h-screen bg-gray-100">
         <EditorToolbar :can-undo="canUndo" :can-redo="canRedo" :has-selection="hasSelection"
             :has-multiple-selection="hasMultipleSelection" @undo="undo" @redo="redo" @copy="handleCopy"
-            @paste="handlePaste" />
+            @paste="handlePaste" @remove-element="handleDelete" />
 
         <!-- <AlignmentToolbar :has-selection="hasSelection" :has-multiple-selection="hasMultipleSelection" /> -->
 
@@ -404,10 +420,7 @@ onMounted(() => {
 
             <EditorProperties v-if="selectedElement" :element="selectedElement"
                 :is-group="selectedElement.type === 'group'" :available-fonts="AVAILABLE_FONTS" :font-sizes="FONT_SIZES"
-                @update:element="updateElement" @remove-element="() => {
-                    removeElements(selectedElementIds.value)
-                    clearSelection()
-                }" />
+                :border-styles="BORDER_STYLES" @update:element="updateElement" @remove-element="handleDelete" />
         </div>
     </div>
 </template>

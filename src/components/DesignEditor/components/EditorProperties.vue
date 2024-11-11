@@ -1,4 +1,3 @@
-// src/components/DesignEditor/components/EditorProperties.vue
 <script setup>
 const props = defineProps({
   element: {
@@ -16,6 +15,10 @@ const props = defineProps({
   fontSizes: {
     type: Array,
     required: true
+  },
+  borderStyles: {
+    type: Array,
+    required: true
   }
 })
 
@@ -28,17 +31,45 @@ const updateElement = (property, value) => {
   })
 }
 
+const getColorValue = (color) => {
+  if (!color || color === 'transparent') return '#ffffff'
+  return color
+}
+
+const updateColor = (property, value) => {
+  const newValue = value === '#ffffff' ? 'transparent' : value
+  updateElement(property, newValue)
+}
+
+const formatColor = (color) => {
+  if (!color || color === 'transparent') return ''
+  return color.toUpperCase()
+}
+
 const removeBackground = () => {
-  const updatedElement = { ...props.element }
-  updatedElement.backgroundColor = 'transparent'
-  emit('update:element', updatedElement)
+  updateElement('backgroundColor', 'transparent')
+}
+
+const updateBorder = (property, value) => {
+  if (property === 'borderColor') {
+    const newValue = value === '#ffffff' ? 'transparent' : value
+    updateElement(property, newValue)
+    // Se a cor da borda está sendo definida, garante que haja uma largura mínima
+    if (props.element.borderWidth === 0) {
+      updateElement('borderWidth', 1)
+    }
+  } else {
+    updateElement(property, value)
+  }
 }
 
 const removeBorder = () => {
-  const updatedElement = { ...props.element }
-  updatedElement.borderColor = 'transparent'
-  updatedElement.borderWidth = 0
-  emit('update:element', updatedElement)
+  emit('update:element', {
+    ...props.element,
+    borderColor: 'transparent',
+    borderWidth: 0,
+    borderRadius: 0
+  })
 }
 </script>
 
@@ -108,10 +139,10 @@ const removeBorder = () => {
           </button>
         </div>
         <div class="flex gap-2">
-          <input type="color" :value="element.backgroundColor === 'transparent' ? '#FFFFFF' : element.backgroundColor"
-            @input="e => updateElement('backgroundColor', e.target.value)" class="w-8 h-8 rounded border p-0" />
-          <input type="text" :value="element.backgroundColor === 'transparent' ? '' : element.backgroundColor"
-            @input="e => updateElement('backgroundColor', e.target.value)" placeholder="Transparente"
+          <input type="color" :value="getColorValue(element.backgroundColor)"
+            @input="e => updateColor('backgroundColor', e.target.value)" class="w-8 h-8 rounded border p-0" />
+          <input type="text" :value="formatColor(element.backgroundColor)"
+            @input="e => updateColor('backgroundColor', e.target.value)" placeholder="Transparente"
             class="flex-1 px-2 py-1 rounded border focus:ring-2 focus:ring-blue-500 outline-none uppercase" />
         </div>
       </div>
@@ -126,19 +157,30 @@ const removeBorder = () => {
             </button>
           </div>
           <div class="flex gap-2">
-            <input type="color" :value="element.borderColor === 'transparent' ? '#000000' : element.borderColor"
-              @input="e => updateElement('borderColor', e.target.value)" class="w-8 h-8 rounded border p-0" />
-            <input type="text" :value="element.borderColor === 'transparent' ? '' : element.borderColor"
-              @input="e => updateElement('borderColor', e.target.value)" placeholder="Sem borda"
+            <input type="color" :value="getColorValue(element.borderColor)"
+              @input="e => updateBorder('borderColor', e.target.value)" class="w-8 h-8 rounded border p-0" />
+            <input type="text" :value="formatColor(element.borderColor)"
+              @input="e => updateBorder('borderColor', e.target.value)" placeholder="Sem borda"
               class="flex-1 px-2 py-1 rounded border focus:ring-2 focus:ring-blue-500 outline-none uppercase" />
           </div>
+        </div>
+
+        <!-- Tipo de Borda -->
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Tipo de Borda</label>
+          <select :value="element.borderStyle || 'solid'" @change="e => updateElement('borderStyle', e.target.value)"
+            class="w-full px-2 py-1 rounded border focus:ring-2 focus:ring-blue-500 outline-none">
+            <option v-for="style in borderStyles" :key="style.value" :value="style.value">
+              {{ style.label }}
+            </option>
+          </select>
         </div>
 
         <!-- Espessura da Borda -->
         <div>
           <label class="block text-xs text-gray-500 mb-1">Espessura da Borda</label>
           <input type="number" :value="element.borderWidth"
-            @input="e => updateElement('borderWidth', Number(e.target.value))" min="0" max="20"
+            @input="e => updateBorder('borderWidth', Math.max(0, Number(e.target.value)))" min="0" max="20"
             class="w-full px-2 py-1 rounded border focus:ring-2 focus:ring-blue-500 outline-none" />
         </div>
 
@@ -146,7 +188,7 @@ const removeBorder = () => {
         <div>
           <label class="block text-xs text-gray-500 mb-1">Arredondamento</label>
           <input type="number" :value="element.borderRadius"
-            @input="e => updateElement('borderRadius', Number(e.target.value))" min="0"
+            @input="e => updateBorder('borderRadius', Math.max(0, Number(e.target.value)))" min="0"
             class="w-full px-2 py-1 rounded border focus:ring-2 focus:ring-blue-500 outline-none" />
         </div>
       </div>
@@ -156,16 +198,19 @@ const removeBorder = () => {
     <div v-if="element.type === 'text'" class="p-4 space-y-4">
       <h3 class="font-medium text-sm text-gray-600">Texto</h3>
       <div class="space-y-3">
+        <!-- Cor do Texto -->
         <div>
           <label class="block text-xs text-gray-500 mb-1">Cor do Texto</label>
           <div class="flex gap-2">
-            <input type="color" :value="element.textColor" @input="e => updateElement('textColor', e.target.value)"
-              class="w-8 h-8 rounded border p-0" />
-            <input type="text" :value="element.textColor" @input="e => updateElement('textColor', e.target.value)"
+            <input type="color" :value="getColorValue(element.textColor)"
+              @input="e => updateColor('textColor', e.target.value)" class="w-8 h-8 rounded border p-0" />
+            <input type="text" :value="formatColor(element.textColor)"
+              @input="e => updateColor('textColor', e.target.value)"
               class="flex-1 px-2 py-1 rounded border focus:ring-2 focus:ring-blue-500 outline-none uppercase" />
           </div>
         </div>
 
+        <!-- Fonte -->
         <div>
           <label class="block text-xs text-gray-500 mb-1">Fonte</label>
           <select :value="element.fontFamily" @change="e => updateElement('fontFamily', e.target.value)"
@@ -177,6 +222,7 @@ const removeBorder = () => {
           </select>
         </div>
 
+        <!-- Tamanho da Fonte -->
         <div>
           <label class="block text-xs text-gray-500 mb-1">Tamanho da Fonte</label>
           <select :value="element.fontSize" @change="e => updateElement('fontSize', Number(e.target.value))"
@@ -201,10 +247,12 @@ const removeBorder = () => {
 
 <style scoped>
 input[type="color"] {
+  -webkit-appearance: none;
   padding: 0;
-  border: none;
+  border: 1px solid #ddd;
   border-radius: 4px;
   cursor: pointer;
+  background: none;
 }
 
 input[type="color"]::-webkit-color-swatch-wrapper {
@@ -213,6 +261,12 @@ input[type="color"]::-webkit-color-swatch-wrapper {
 
 input[type="color"]::-webkit-color-swatch {
   border: none;
-  border-radius: 4px;
+  border-radius: 3px;
+}
+
+/* Firefox */
+input[type="color"]::-moz-color-swatch {
+  border: none;
+  border-radius: 3px;
 }
 </style>

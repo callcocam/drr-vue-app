@@ -135,16 +135,20 @@ const resizeHandles = ['tl', 'tr', 'bl', 'br']
             'element': true,
             'selected': element.isSelected
         }" :style="{
-        position: 'absolute',
-        left: `${element.x}px`,
-        top: `${element.y}px`,
-        width: `${element.width}px`,
-        height: `${element.height}px`,
-        transform: `rotate(${element.rotation || 0}deg)`,
-        backgroundColor: element.backgroundColor,
-        border: element.isSelected ? '2px solid #1a73e8' : '1px solid #ddd',
-        zIndex: element.zIndex,
-    }">
+            position: 'absolute',
+            left: `${element.x}px`,
+            top: `${element.y}px`,
+            width: `${element.width}px`,
+            height: `${element.height}px`,
+            transform: `rotate(${element.rotation || 0}deg)`,
+            backgroundColor: element.backgroundColor,
+            borderStyle: element.borderStyle || 'solid',
+            borderWidth: element.borderWidth ? `${element.borderWidth}px` : '0',
+            borderColor: element.borderColor || 'transparent',
+            borderRadius: element.borderRadius ? `${element.borderRadius}px` : '0',
+            zIndex: element.zIndex,
+        }">
+
             <!-- Conteúdo específico do elemento baseado no tipo -->
             <template v-if="element.type === 'text'">
                 <div class="text-content" :style="{

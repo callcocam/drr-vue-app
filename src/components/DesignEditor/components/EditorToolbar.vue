@@ -13,10 +13,11 @@ const emit = defineEmits([
     'redo',
     'group',
     'ungroup',
-    'delete',
+    'removeElement',
     'copy',
     'paste'
 ])
+
 </script>
 
 <template>
@@ -65,31 +66,10 @@ const emit = defineEmits([
             </button>
         </div>
 
-        <!-- Agrupar/Desagrupar -->
-        <!-- <div class="flex items-center gap-1 border-r pr-2">
-            <button
-                class="p-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                :disabled="!canGroup" @click="$emit('group')" title="Agrupar (Ctrl+G)">
-                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h6v6h-6v-6z" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-            </button>
-
-            <button
-                class="p-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                :disabled="!isGroup" @click="$emit('ungroup')" title="Desagrupar (Ctrl+Shift+G)">
-                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M4 4h6v6H4V4zm10 0h6M4 14h6v6H4v-6zm10 4h6m-6-4h6m-16-4h16" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-            </button>
-        </div> -->
-
         <!-- Excluir -->
         <button
             class="p-2 rounded hover:bg-red-100 text-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            :disabled="!hasSelection" @click="$emit('delete')" title="Excluir (Delete)">
+            :disabled="!hasSelection" @click="$emit('removeElement')" title="Excluir (Delete)">
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path
                     d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
