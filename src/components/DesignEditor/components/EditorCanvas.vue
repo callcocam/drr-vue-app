@@ -1,35 +1,39 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 const props = defineProps({
     elements: {
         type: Array,
-        required: true
+        required: true,
     },
     selectedElements: {
         type: Set,
-        required: true
+        required: true,
+    },
+    selectionBounds: {
+        type: Object,
+        default: null,
     },
     guides: {
         type: Object,
-        required: true
+        required: true,
     },
     dragPreview: {
         type: Object,
-        required: true
+        required: true,
     },
     interaction: {
         type: Object,
-        required: true
-    }
+        required: true,
+    },
 })
 
 const emit = defineEmits([
     'element-click',
+    'element-mousedown',
     'deselect',
     'add-to-selection',
     'remove-from-selection',
-    'update-selection',
     'start-move',
     'start-resize',
     'start-rotate',
@@ -39,42 +43,63 @@ const emit = defineEmits([
 
 const canvasRef = ref(null)
 
-const isSelected = (element) => {
-    return props.selectedElements.has(element.id)
+// Função para encontrar elemento na posição do mouse
+const findElementAtPosition = (event) => {
+    const rect = canvasRef.value.getBoundingClientRect()
+    const x = event.clientX - rect.left
+    const y = event.clientY - rect.top
+
+    // Procura do último (topo) para o primeiro (fundo)
+    for (let i = props.elements.length - 1; i >= 0; i--) {
+        const element = props.elements[i]
+        if (isPointInElement(x, y, element)) {
+            return element
+        }
+    }
+    return null
 }
 
-// Handlers de interação
-const handleElementClick = (event, element) => {
-    event.stopPropagation()
-    emit('element-click', element, event)
+// Verifica se um ponto está dentro de um elemento
+const isPointInElement = (x, y, element) => {
+    return (
+        x >= element.x &&
+        x <= element.x + element.width &&
+        y >= element.y &&
+        y <= element.y + element.height
+    )
 }
 
-const handleStartMove = (event, element) => {
-    if (!event) return
-    event.stopPropagation()
-    event.preventDefault() 
-    emit('start-move', { event, element })
+// Handlers de eventos
+const handleCanvasClick = (event) => {
+    const element = findElementAtPosition(event)
+    if (element) {
+        emit('element-click', element, event)
+    } else {
+        emit('deselect')
+    }
 }
 
-const handleStartResize = (event, element) => {
-    if (!event) return
+const handleMouseDown = (event) => {
+    const element = findElementAtPosition(event)
+    if (element) {
+        // Se for um elemento de controle (resize/rotate), não emite mousedown
+        if (event.target.classList.contains('resize-handle') ||
+            event.target.classList.contains('rotate-handle')) {
+            return
+        }
+
+        emit('element-mousedown', element, event)
+    }
+}
+
+const handleStartResize = (event, element, handle) => {
     event.stopPropagation()
-    event.preventDefault()
-    emit('start-resize', { event, element })
+    emit('start-resize', { event, element, handle })
 }
 
 const handleStartRotate = (event, element) => {
-    if (!event) return
     event.stopPropagation()
-    event.preventDefault()
     emit('start-rotate', { event, element })
-}
-
-// Handlers do canvas
-const handleCanvasClick = (event) => {
-    if (event.target === canvasRef.value) {
-        emit('deselect')
-    }
 }
 
 const handleDragOver = (event) => {
@@ -86,79 +111,200 @@ const handleDrop = (event) => {
     event.preventDefault()
     emit('drop', { event, canvasRef: canvasRef.value })
 }
+
+// Computed para elementos com identificador de seleção
+const renderedElements = computed(() =>
+    props.elements.map(element => ({
+        ...element,
+        isSelected: props.selectedElements.has(element.id)
+    }))
+)
+
+// Array de handles para redimensionamento
+const resizeHandles = ['tl', 'tr', 'bl', 'br']
 </script>
 
 <template>
-    <div class="flex-1 p-4">
-        <div ref="canvasRef"
-            class="w-full h-full bg-white border-2 border-dashed border-gray-300 relative overflow-hidden"
-            @click="handleCanvasClick" @dragover.prevent="handleDragOver" @drop.prevent="handleDrop">
-            <!-- Elementos do Canvas -->
-            <div v-for="element in elements" :key="element.id" class="absolute" :class="{
-                'ring-2 ring-blue-500': isSelected(element),
-                'cursor-move': !interaction.isMoving && !interaction.isResizing && !interaction.isRotating
-            }" :style="{
-            left: `${element.x}px`,
-            top: `${element.y}px`,
-            width: `${element.width}px`,
-            height: `${element.height}px`,
-            transform: `rotate(${element.rotation}deg)`,
-            backgroundColor: element.backgroundColor || 'transparent',
-            borderColor: element.borderColor || 'transparent',
-            borderWidth: `${element.borderWidth}px`,
-            borderStyle: 'solid',
-            zIndex: isSelected(element) ? 9999 : element.zIndex,
-            borderRadius: element.type === 'circle' ? '50%' : (element.borderRadius || 0) + 'px',
-            userSelect: 'none'
-        }" @mousedown="handleStartMove($event, element)" @click.stop="handleElementClick($event, element)">
-                <!-- Alças de Manipulação -->
-                <template v-if="isSelected(element)">
-                    <!-- Alça de Redimensionamento -->
-                    <div class="absolute w-3 h-3 bg-blue-500 rounded-full cursor-se-resize -bottom-1.5 -right-1.5 hover:scale-125 transition-transform"
-                        @mousedown.stop="handleStartResize($event, element)" />
+    <div ref="canvasRef" class="canvas" @click="handleCanvasClick" @mousedown="handleMouseDown"
+        @dragover="handleDragOver" @drop="handleDrop">
+        <!-- Grid ou background -->
+        <div class="grid-background" />
 
-                    <!-- Alça de Rotação -->
-                    <div class="absolute w-3 h-3 bg-green-500 rounded-full cursor-pointer -top-6 left-1/2 -translate-x-1/2 hover:scale-125 transition-transform"
-                        @mousedown.stop="handleStartRotate($event, element)">
-                        <div class="absolute w-px h-5 bg-green-500 left-1/2 top-full transform -translate-x-1/2" />
-                    </div>
-                </template>
-
-                <!-- Conteúdo do Elemento -->
-                <div class="w-full h-full flex items-center justify-center select-none" :style="{
-                    fontFamily: element.fontFamily,
+        <!-- Elementos do canvas -->
+        <div v-for="element in renderedElements" :key="element.id" :class="{
+            'element': true,
+            'selected': element.isSelected
+        }" :style="{
+        position: 'absolute',
+        left: `${element.x}px`,
+        top: `${element.y}px`,
+        width: `${element.width}px`,
+        height: `${element.height}px`,
+        transform: `rotate(${element.rotation || 0}deg)`,
+        backgroundColor: element.backgroundColor,
+        border: element.isSelected ? '2px solid #1a73e8' : '1px solid #ddd',
+        zIndex: element.zIndex,
+    }">
+            <!-- Conteúdo específico do elemento baseado no tipo -->
+            <template v-if="element.type === 'text'">
+                <div class="text-content" :style="{
+                    color: element.textColor,
                     fontSize: `${element.fontSize}px`,
-                    color: element.textColor
+                    fontFamily: element.fontFamily,
                 }">
-                    {{ element.type === 'text' ? element.text : '' }}
+                    {{ element.text }}
                 </div>
-            </div>
+            </template>
 
-            <!-- Guias de Alinhamento -->
-            <div v-for="guide in guides.vertical" :key="'v-' + guide.position"
-                class="absolute top-0 bottom-0 w-px bg-blue-500 pointer-events-none opacity-70"
-                :style="{ left: `${guide.position}px` }" />
-            <div v-for="guide in guides.horizontal" :key="'h-' + guide.position"
-                class="absolute left-0 right-0 h-px bg-blue-500 pointer-events-none opacity-70"
-                :style="{ top: `${guide.position}px` }" />
-
-            <!-- Preview de Arrasto -->
-            <div v-if="dragPreview.visible"
-                class="absolute border-2 border-gray-400 bg-gray-200 opacity-50 pointer-events-none" :style="{
-                    left: `${dragPreview.x}px`,
-                    top: `${dragPreview.y}px`,
-                    width: '100px',
-                    height: '100px'
-                }" />
+            <!-- Controles de redimensionamento quando selecionado -->
+            <template v-if="element.isSelected">
+                <div v-for="handle in resizeHandles" :key="handle" :class="`resize-handle ${handle}`"
+                    @mousedown.stop="(e) => handleStartResize(e, element, handle)" />
+                <div class="rotate-handle" @mousedown.stop="(e) => handleStartRotate(e, element)" />
+            </template>
         </div>
+
+        <!-- Preview de arrasto -->
+        <div v-if="dragPreview.visible" class="drag-preview" :style="{
+            position: 'absolute',
+            left: `${dragPreview.x}px`,
+            top: `${dragPreview.y}px`,
+            width: '100px',
+            height: '100px',
+            border: '2px dashed #1a73e8',
+        }" />
+
+        <!-- Guias de alinhamento -->
+        <template v-if="guides">
+            <div v-for="(guide, index) in guides.vertical" :key="`v-${index}`" class="guide vertical" :style="{
+                position: 'absolute',
+                left: `${guide.position}px`,
+                top: 0,
+                width: '1px',
+                height: '100%',
+                backgroundColor: '#1a73e8',
+            }" />
+            <div v-for="(guide, index) in guides.horizontal" :key="`h-${index}`" class="guide horizontal" :style="{
+                position: 'absolute',
+                left: 0,
+                top: `${guide.position}px`,
+                width: '100%',
+                height: '1px',
+                backgroundColor: '#1a73e8',
+            }" />
+        </template>
+
+        <!-- Bounds da seleção múltipla -->
+        <template v-if="selectionBounds">
+            <div class="selection-bounds" :style="{
+                position: 'absolute',
+                left: `${selectionBounds.left}px`,
+                top: `${selectionBounds.top}px`,
+                width: `${selectionBounds.right - selectionBounds.left}px`,
+                height: `${selectionBounds.bottom - selectionBounds.top}px`,
+                border: '1px solid #1a73e8',
+            }" />
+        </template>
     </div>
 </template>
 
 <style scoped>
-.guide-line {
-    position: absolute;
-    background-color: rgb(59, 130, 246);
+.canvas {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: white;
+    user-select: none;
+    overflow: hidden;
+}
+
+.element {
+    cursor: move;
+    user-select: none;
+}
+
+.text-content {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
     pointer-events: none;
-    opacity: 0.7;
+}
+
+.resize-handle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: white;
+    border: 1px solid #1a73e8;
+    border-radius: 4px;
+}
+
+.resize-handle.tl {
+    top: -4px;
+    left: -4px;
+    cursor: nw-resize;
+}
+
+.resize-handle.tr {
+    top: -4px;
+    right: -4px;
+    cursor: ne-resize;
+}
+
+.resize-handle.bl {
+    bottom: -4px;
+    left: -4px;
+    cursor: sw-resize;
+}
+
+.resize-handle.br {
+    bottom: -4px;
+    right: -4px;
+    cursor: se-resize;
+}
+
+.rotate-handle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: white;
+    border: 1px solid #1a73e8;
+    border-radius: 4px;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    cursor: pointer;
+}
+
+.guide {
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.selection-bounds {
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.drag-preview {
+    pointer-events: none;
+    z-index: 1000;
+    background: rgba(26, 115, 232, 0.1);
+}
+
+.grid-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    background-size: 20px 20px;
+    background-image:
+        linear-gradient(to right, #f0f0f0 1px, transparent 1px),
+        linear-gradient(to bottom, #f0f0f0 1px, transparent 1px);
 }
 </style>

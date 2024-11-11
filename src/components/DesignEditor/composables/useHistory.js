@@ -1,46 +1,54 @@
+// composables/useHistory.js
 import { ref, computed } from 'vue'
 
-export function useHistory(initialState = []) {
-  const history = ref([initialState])
-  const currentIndex = ref(0)
+export const useHistory = (canvasElements, selectedElementIds) => {
+  const history = ref({
+    states: [],
+    currentIndex: -1
+  })
 
-  const canUndo = computed(() => currentIndex.value > 0)
-  const canRedo = computed(() => currentIndex.value < history.value.length - 1)
-
-  const addToHistory = (newState) => {
-    if (currentIndex.value < history.value.length - 1) {
-      history.value = history.value.slice(0, currentIndex.value + 1)
+  const saveState = () => {
+    if (history.value.currentIndex < history.value.states.length - 1) {
+      history.value.states = history.value.states.slice(0, history.value.currentIndex + 1)
     }
 
-    history.value.push(JSON.parse(JSON.stringify(newState)))
-    currentIndex.value++
+    history.value.states.push(JSON.stringify({
+      elements: canvasElements.value,
+      selection: Array.from(selectedElementIds.value)
+    }))
+    history.value.currentIndex++
 
-    if (history.value.length > 50) {
-      history.value = history.value.slice(-50)
-      currentIndex.value = history.value.length - 1
+    if (history.value.states.length > 50) {
+      history.value.states = history.value.states.slice(-50)
+      history.value.currentIndex = history.value.states.length - 1
     }
   }
 
+  const canUndo = computed(() => history.value.currentIndex > 0)
+  const canRedo = computed(() => history.value.currentIndex < history.value.states.length - 1)
+
   const undo = () => {
-    if (canUndo.value) {
-      currentIndex.value--
-      return JSON.parse(JSON.stringify(history.value[currentIndex.value]))
-    }
-    return null
+    if (!canUndo.value) return
+
+    history.value.currentIndex--
+    const previousState = JSON.parse(history.value.states[history.value.currentIndex])
+    canvasElements.value = previousState.elements
+    selectedElementIds.value = new Set(previousState.selection)
   }
 
   const redo = () => {
-    if (canRedo.value) {
-      currentIndex.value++
-      return JSON.parse(JSON.stringify(history.value[currentIndex.value]))
-    }
-    return null
+    if (!canRedo.value) return
+
+    history.value.currentIndex++
+    const nextState = JSON.parse(history.value.states[history.value.currentIndex])
+    canvasElements.value = nextState.elements
+    selectedElementIds.value = new Set(nextState.selection)
   }
 
   return {
     canUndo,
     canRedo,
-    addToHistory,
+    saveState,
     undo,
     redo
   }

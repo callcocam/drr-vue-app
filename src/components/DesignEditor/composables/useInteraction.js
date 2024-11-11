@@ -1,7 +1,7 @@
-// src/components/DesignEditor/composables/useInteraction.js
+// composables/useInteraction.js
 import { ref } from 'vue'
 
-export function useInteraction() {
+export const useInteraction = ({ getEventPosition }) => {
     const interaction = ref({
         isMoving: false,
         isResizing: false,
@@ -11,70 +11,50 @@ export function useInteraction() {
         initialElements: null
     })
 
-    const getEventPosition = (event) => {
-        if (!event) return null
+    const startMove = ({ event, element, selectedElements, selectedElementsArray }) => {
+        // Não inicia movimento se já estiver redimensionando ou rotacionando
+        if (interaction.value.isResizing || interaction.value.isRotating) return
 
-        if (event.touches && event.touches[0]) {
-            return {
-                clientX: event.touches[0].clientX,
-                clientY: event.touches[0].clientY
-            }
-        }
-
-        return {
-            clientX: event.clientX,
-            clientY: event.clientY
-        }
-    }
-
-    const startMove = ({ event, element }, selectedElements, elements) => {
         const pos = getEventPosition(event)
-        if (!pos) return
 
-        // Salva o estado inicial de todos os elementos selecionados
-        const initialElements = elements
-            .filter(el => selectedElements.has(el.id))
-            .map(el => ({ ...el }))  
-
+        // Sempre armazena o estado inicial de todos os elementos selecionados
         interaction.value = {
             isMoving: true,
             isResizing: false,
             isRotating: false,
             initialMousePos: pos,
-            initialElementState: { ...element },
-            initialElements
-        } 
+            initialElements: selectedElementsArray.map(el => ({ ...el })),
+            initialElementState: { ...element }
+        }
     }
 
     const startResize = ({ event, element }) => {
-        const pos = getEventPosition(event)
-        if (!pos) return
+        if (!element) return
 
+        const pos = getEventPosition(event)
         interaction.value = {
             isMoving: false,
             isResizing: true,
             isRotating: false,
             initialMousePos: pos,
-            initialElementState: { ...element },
-            initialElements: null
+            initialElementState: { ...element }
         }
     }
 
     const startRotate = ({ event, element }) => {
-        const pos = getEventPosition(event)
-        if (!pos) return
+        if (!element) return
 
+        const pos = getEventPosition(event)
         interaction.value = {
             isMoving: false,
             isResizing: false,
             isRotating: true,
             initialMousePos: pos,
-            initialElementState: { ...element },
-            initialElements: null
+            initialElementState: { ...element }
         }
     }
 
-    const stopInteraction = () => {
+    const resetInteraction = () => {
         interaction.value = {
             isMoving: false,
             isResizing: false,
@@ -90,7 +70,6 @@ export function useInteraction() {
         startMove,
         startResize,
         startRotate,
-        stopInteraction,
-        getEventPosition
+        resetInteraction
     }
 }

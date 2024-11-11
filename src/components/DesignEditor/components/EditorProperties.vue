@@ -201,7 +201,6 @@ const removeBorder = () => {
 
 <style scoped>
 input[type="color"] {
-  -webkit-appearance: none;
   padding: 0;
   border: none;
   border-radius: 4px;
