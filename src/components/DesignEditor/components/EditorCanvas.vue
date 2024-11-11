@@ -79,15 +79,13 @@ const handleCanvasClick = (event) => {
     }
 }
 
-const handleMouseDown = (event) => {
+const handleCanvasMouseDown = (event) => {
     const element = findElementAtPosition(event)
     if (element) {
-        // Se for um elemento de controle (resize/rotate), não emite mousedown
         if (event.target.classList.contains('resize-handle') ||
             event.target.classList.contains('rotate-handle')) {
             return
         }
-
         emit('element-mousedown', element, event)
     }
 }
@@ -112,61 +110,72 @@ const handleDrop = (event) => {
     emit('drop', { event, canvasRef: canvasRef.value })
 }
 
-// Computed para elementos com identificador de seleção
-const renderedElements = computed(() =>
-    props.elements.map(element => ({
-        ...element,
-        isSelected: props.selectedElements.has(element.id)
-    }))
-)
-
-// Array de handles para redimensionamento
-const resizeHandles = ['tl', 'tr', 'bl', 'br']
+// Função para gerar estilos do elemento
+const getElementStyle = (element) => {
+    return {
+        position: 'absolute',
+        left: `${element.x}px`,
+        top: `${element.y}px`,
+        width: `${element.width}px`,
+        height: `${element.height}px`,
+        transform: `rotate(${element.rotation || 0}deg)`,
+        backgroundColor: element.backgroundColor,
+        borderStyle: element.borderStyle || 'solid',
+        borderWidth: element.borderWidth ? `${element.borderWidth}px` : '0',
+        borderColor: element.borderColor || 'transparent',
+        borderRadius: element.borderRadius ? `${element.borderRadius}px` : '0',
+        zIndex: element.zIndex,
+    }
+}
 </script>
 
 <template>
-    <div ref="canvasRef" class="canvas" @click="handleCanvasClick" @mousedown="handleMouseDown"
+    <div ref="canvasRef" class="canvas" @click="handleCanvasClick" @mousedown="handleCanvasMouseDown"
         @dragover="handleDragOver" @drop="handleDrop">
-        <!-- Grid ou background -->
+        <!-- Grid de fundo -->
         <div class="grid-background" />
 
         <!-- Elementos do canvas -->
-        <div v-for="element in renderedElements" :key="element.id" :class="{
-            'element': true,
-            'selected': element.isSelected
-        }" :style="{
-            position: 'absolute',
-            left: `${element.x}px`,
-            top: `${element.y}px`,
-            width: `${element.width}px`,
-            height: `${element.height}px`,
-            transform: `rotate(${element.rotation || 0}deg)`,
-            backgroundColor: element.backgroundColor,
-            borderStyle: element.borderStyle || 'solid',
-            borderWidth: element.borderWidth ? `${element.borderWidth}px` : '0',
-            borderColor: element.borderColor || 'transparent',
-            borderRadius: element.borderRadius ? `${element.borderRadius}px` : '0',
-            zIndex: element.zIndex,
-        }">
+        <template v-for="element in elements" :key="element.id">
+            <!-- Template Element -->
+            <div v-if="element.type === 'template'" :class="{
+                'element': true,
+                'selected': selectedElements.has(element.id)
+            }" :style="getElementStyle(element)">
+                <div class="template-content" v-html="element.template" />
 
-            <!-- Conteúdo específico do elemento baseado no tipo -->
-            <template v-if="element.type === 'text'">
-                <div class="text-content" :style="{
-                    color: element.textColor,
-                    fontSize: `${element.fontSize}px`,
-                    fontFamily: element.fontFamily,
-                }">
-                    {{ element.text }}
-                </div>
-            </template>
+                <!-- Controles de manipulação para templates -->
+                <template v-if="selectedElements.has(element.id)">
+                    <div v-for="handle in ['tl', 'tr', 'bl', 'br']" :key="handle" :class="`resize-handle ${handle}`"
+                        @mousedown.stop="(e) => handleStartResize(e, element, handle)" />
+                    <div class="rotate-handle" @mousedown.stop="(e) => handleStartRotate(e, element)" />
+                </template>
+            </div>
 
-            <!-- Controles de redimensionamento quando selecionado -->
-            <template v-if="element.isSelected">
-                <div v-for="handle in resizeHandles" :key="handle" :class="`resize-handle ${handle}`"
-                    @mousedown.stop="(e) => handleStartResize(e, element, handle)" />
-                <div class="rotate-handle" @mousedown.stop="(e) => handleStartRotate(e, element)" />
-            </template>
-        </div>
+            <!-- Elementos regulares -->
+            <div v-else :class="{
+                'element': true,
+                'selected': selectedElements.has(element.id)
+            }" :style="getElementStyle(element)">
+                <!-- Conteúdo específico do elemento baseado no tipo -->
+                <template v-if="element.type === 'text'">
+                    <div class="text-content" :style="{
+                        color: element.textColor,
+                        fontSize: `${element.fontSize}px`,
+                        fontFamily: element.fontFamily,
+                    }">
+                        {{ element.text }}
+                    </div>
+                </template>
+
+                <!-- Controles de manipulação -->
+                <template v-if="selectedElements.has(element.id)">
+                    <div v-for="handle in ['tl', 'tr', 'bl', 'br']" :key="handle" :class="`resize-handle ${handle}`"
+                        @mousedown.stop="(e) => handleStartResize(e, element, handle)" />
+                    <div class="rotate-handle" @mousedown.stop="(e) => handleStartRotate(e, element)" />
+                </template>
+            </div>
+        </template>
 
         <!-- Preview de arrasto -->
         <div v-if="dragPreview.visible" class="drag-preview" :style="{
@@ -225,6 +234,12 @@ const resizeHandles = ['tl', 'tr', 'bl', 'br']
 .element {
     cursor: move;
     user-select: none;
+}
+
+.template-content {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
 }
 
 .text-content {
@@ -310,5 +325,9 @@ const resizeHandles = ['tl', 'tr', 'bl', 'br']
     background-image:
         linear-gradient(to right, #f0f0f0 1px, transparent 1px),
         linear-gradient(to bottom, #f0f0f0 1px, transparent 1px);
+}
+
+.selected {
+    outline: 2px solid #1a73e8;
 }
 </style>

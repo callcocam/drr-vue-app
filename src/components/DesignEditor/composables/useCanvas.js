@@ -10,7 +10,26 @@ export const useCanvas = () => {
         return nextId.value++
     }
 
-    const createElement = (type, x, y) => {
+
+    const createElement = (type, x, y, template = null) => {
+        if (type === 'template') {
+            return {
+                id: generateUniqueId(),
+                type: 'template',
+                x,
+                y,
+                width: template.width,
+                height: template.height,
+                rotation: 0,
+                zIndex: 1,
+                template: template.template,
+                backgroundColor: 'transparent',
+                borderColor: 'transparent',
+                borderWidth: 0,
+                borderStyle: 'solid',
+                borderRadius: 0
+            }
+        }
         return {
             id: generateUniqueId(),
             type,
@@ -38,8 +57,7 @@ export const useCanvas = () => {
         return newElement
     }
 
-    const removeElements = (elementIds) => {
-        console.log('elementIds', elementIds)
+    const removeElements = (elementIds) => { 
         canvasElements.value = canvasElements.value.filter(
             element => !elementIds.has(element.id)
         )
