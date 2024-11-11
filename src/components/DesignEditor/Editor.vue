@@ -1,11 +1,11 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import EditorSidebar from './components/EditorSidebar.vue'
+import TemplateSidebar from './components/TemplateSidebar.vue'
 import EditorCanvas from './components/EditorCanvas.vue'
 import EditorProperties from './components/EditorProperties.vue'
 import EditorToolbar from './components/EditorToolbar.vue'
 import AlignmentToolbar from './components/AlignmentToolbar.vue'
-import TemplateSidebar from './components/TemplateSidebar.vue'
 
 import { useCanvas } from '@/components/DesignEditor/composables/useCanvas'
 import { useSelection } from '@/components/DesignEditor/composables/useSelection'
@@ -16,6 +16,8 @@ import { useGuides } from '@/components/DesignEditor/composables/useGuides'
 import { useEventUtils } from '@/components/DesignEditor/composables/useEventUtils'
 
 // ==================== Configurações ====================
+const activeTab = ref('elements')
+
 const AVAILABLE_ELEMENTS = [
     { type: 'rectangle', label: 'Retângulo' },
     { type: 'circle', label: 'Círculo' },
@@ -36,14 +38,13 @@ const FONT_SIZES = [
 ]
 
 const BORDER_STYLES = [
-  { value: 'solid', label: 'Sólida' },
-  { value: 'dashed', label: 'Tracejada' },
-  { value: 'dotted', label: 'Pontilhada' },
-  { value: 'double', label: 'Dupla' }
+    { value: 'solid', label: 'Sólida' },
+    { value: 'dashed', label: 'Tracejada' },
+    { value: 'dotted', label: 'Pontilhada' },
+    { value: 'double', label: 'Dupla' }
 ]
 
 // ==================== Estado Local ====================
-const activeTab = ref('elements')
 const dragPreview = ref({
     visible: false,
     x: 0,
@@ -108,6 +109,8 @@ const selectionBounds = computed(() => {
 // ==================== Event Handlers ====================
 const handleElementSelect = (element, event) => {
     if (!element) return
+
+    // Primeiro faz a seleção
     selectElement(element, event)
 }
 
@@ -115,9 +118,11 @@ const handleElementMouseDown = (element, event) => {
     if (!element || !selectedElementIds.value) return
 
     if (!selectedElementIds.value.has(element.id)) {
+        // Se o elemento não está selecionado, seleciona primeiro
         selectElement(element, event)
     }
 
+    // Inicia o movimento com os elementos atualmente selecionados
     startMove({
         event,
         element,
@@ -126,7 +131,9 @@ const handleElementMouseDown = (element, event) => {
     })
 }
 
+
 const handleDragStart = ({ event, element }) => {
+    if (!event?.dataTransfer || !element) return
     event.dataTransfer.setData('text/plain', element.type)
     dragPreview.value.visible = true
 }
@@ -135,17 +142,8 @@ const handleDragEnd = () => {
     dragPreview.value.visible = false
 }
 
-const handleTemplateDragStart = ({ event, template }) => {
-    event.dataTransfer.setData('text/plain', 'template')
-    event.dataTransfer.setData('application/json', JSON.stringify(template))
-    dragPreview.value.visible = true
-}
-
-const handleTemplateDragEnd = () => {
-    dragPreview.value.visible = false
-}
-
 const handleDragOver = ({ event, canvasRef }) => {
+    if (!event || !canvasRef) return
     event.preventDefault()
     const rect = canvasRef.getBoundingClientRect()
     dragPreview.value.x = event.clientX - rect.left - 50
@@ -158,17 +156,27 @@ const handleDrop = ({ event, canvasRef }) => {
     const x = event.clientX - rect.left - 50
     const y = event.clientY - rect.top - 50
 
-    if (type === 'template') {
-        const template = JSON.parse(event.dataTransfer.getData('application/json'))
-        const newElement = addElement('template', x, y, template)
-        selectElement(newElement)
-    } else {
-        const newElement = addElement(type, x, y)
-        selectElement(newElement)
-    }
+    let newElement
+    try {
+        if (type === 'template') {
+            const templateData = JSON.parse(event.dataTransfer.getData('application/json'))
+            if (!templateData) {
+                console.error('Template data not found')
+                return
+            }
+            newElement = addElement('template', x, y, templateData)
+        } else {
+            newElement = addElement(type, x, y)
+        }
 
-    dragPreview.value.visible = false
-    saveState()
+        if (newElement) {
+            selectElement(newElement)
+            dragPreview.value.visible = false
+            saveState()
+        }
+    } catch (error) {
+        console.error('Error creating element:', error)
+    }
 }
 
 const handleMouseMove = (event) => {
@@ -180,9 +188,12 @@ const handleMouseMove = (event) => {
         const dx = pos.clientX - interaction.value.initialMousePos.clientX
         const dy = pos.clientY - interaction.value.initialMousePos.clientY
 
-        interaction.value.initialElements.forEach(initialState => {
-            const element = canvasElements.value.find(el => el.id === initialState.id)
-            if (element) {
+        // Move todos os elementos selecionados
+        selectedElementsArray.value.forEach(element => {
+            const initialState = interaction.value.initialElements.find(
+                el => el.id === element.id
+            )
+            if (initialState) {
                 element.x = initialState.x + dx
                 element.y = initialState.y + dy
             }
@@ -225,6 +236,24 @@ const handleMouseUp = () => {
     }
 }
 
+
+const handleTemplateDragStart = ({ event, template }) => {
+    if (!template) return
+
+    const templateData = {
+        template: template.template,
+        width: template.width,
+        height: template.height
+    }
+
+    event.dataTransfer.setData('text/plain', 'template')
+    event.dataTransfer.setData('application/json', JSON.stringify(templateData))
+    dragPreview.value.visible = true
+}
+
+const handleTemplateDragEnd = () => {
+    dragPreview.value.visible = false
+}
 const handleCopy = () => {
     if (hasSelection.value && selectedElementsArray.value.length > 0) {
         copyElements(selectedElementsArray.value)
@@ -249,34 +278,54 @@ const handleDelete = () => {
         saveState()
     }
 }
-// ==================== Keyboard Handlers ====================
-const MOVEMENT_STEP = 1
-const FAST_MOVEMENT_STEP = 10
 
-const handleKeyboardShortcuts = (event) => {
-    if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+// ==================== Keyboard Handlers ====================
+const MOVEMENT_STEP = 1 // Pixels por movimento
+const FAST_MOVEMENT_STEP = 10 // Pixels para movimento rápido com Shift
+
+const handleKeyDown = (event) => {
+    // Se não houver elemento selecionado ou estivermos em um campo de texto, não processa
+    if (!hasSelection.value || event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
         return
     }
 
-    // Atalhos com Ctrl/Cmd
+    const step = event.shiftKey ? FAST_MOVEMENT_STEP : MOVEMENT_STEP
+
+    // Manipulação básica (Delete, Copy, Paste, etc)
     if (event.ctrlKey || event.metaKey) {
         switch (event.key.toLowerCase()) {
             case 'c':
                 event.preventDefault()
-                if (hasSelection.value) {
-                    copyElements(selectedElementsArray.value)
-                }
+                handleCopy()
                 break
 
             case 'v':
                 event.preventDefault()
-                const newElements = pasteElements()
-                if (newElements?.length) {
-                    canvasElements.value.push(...newElements)
-                    clearSelection()
-                    newElements.forEach(el => addToSelection(el.id))
-                    saveState()
-                }
+                handlePaste()
+                break
+
+            case 'x':
+                event.preventDefault()
+                handleCopy()
+                removeElements(selectedElementIds.value)
+                clearSelection()
+                saveState()
+                break
+
+            case 'z':
+                event.preventDefault()
+                if (event.shiftKey) redo()
+                else undo()
+                break
+
+            case 'y':
+                event.preventDefault()
+                redo()
+                break
+
+            case 'a':
+                event.preventDefault()
+                canvasElements.value.forEach(element => addToSelection(element.id))
                 break
 
             case 'd':
@@ -288,7 +337,6 @@ const handleKeyboardShortcuts = (event) => {
     }
 
     // Movimento com setas
-    const step = event.shiftKey ? FAST_MOVEMENT_STEP : MOVEMENT_STEP
     let dx = 0
     let dy = 0
 
@@ -309,9 +357,19 @@ const handleKeyboardShortcuts = (event) => {
             event.preventDefault()
             dy = step
             break
+        case 'Delete':
+        case 'Backspace':
+            event.preventDefault()
+            if (hasSelection.value) {
+                removeElements(selectedElementIds.value)
+                clearSelection()
+                saveState()
+            }
+            break
     }
 
-    if ((dx !== 0 || dy !== 0) && hasSelection.value) {
+    // Aplica o movimento se houver
+    if (dx !== 0 || dy !== 0) {
         selectedElementsArray.value.forEach(element => {
             element.x += dx
             element.y += dy
@@ -319,9 +377,34 @@ const handleKeyboardShortcuts = (event) => {
         saveState()
     }
 }
+const generateUniqueId = () => {
+    return Date.now() + '-' + Math.random().toString(36).substr(2, 9)
+}
+
+const handleDuplicate = () => {
+    if (!hasSelection.value) return
+
+    const offset = 20
+    const maxZIndex = Math.max(...canvasElements.value.map(el => el.zIndex), 0)
+
+    const newElements = selectedElementsArray.value.map((element, index) => ({
+        ...element,
+        id: generateUniqueId(),
+        x: element.x + offset,
+        y: element.y + offset,
+        zIndex: maxZIndex + index + 1
+    }))
+
+    clearSelection()
+    canvasElements.value.push(...newElements)
+    newElements.forEach(element => addToSelection(element.id))
+    saveState()
+}
 
 // ==================== Lifecycle Hooks ====================
 onMounted(() => {
+
+
     const handleGlobalMouseMove = (event) => {
         handleMouseMove(event)
     }
@@ -330,18 +413,20 @@ onMounted(() => {
         handleMouseUp(event)
     }
 
-    window.addEventListener('keydown', handleKeyboardShortcuts)
     window.addEventListener('mousemove', handleGlobalMouseMove, { passive: true })
     window.addEventListener('mouseup', handleGlobalMouseUp)
     window.addEventListener('touchmove', handleGlobalMouseMove, { passive: true })
     window.addEventListener('touchend', handleGlobalMouseUp)
 
+    window.addEventListener('keydown', handleKeyDown)
+
     onBeforeUnmount(() => {
-        window.removeEventListener('keydown', handleKeyboardShortcuts)
         window.removeEventListener('mousemove', handleGlobalMouseMove)
         window.removeEventListener('mouseup', handleGlobalMouseUp)
         window.removeEventListener('touchmove', handleGlobalMouseMove)
         window.removeEventListener('touchend', handleGlobalMouseUp)
+
+        window.removeEventListener('keydown', handleKeyDown)
     })
 })
 </script>
@@ -349,10 +434,10 @@ onMounted(() => {
 <template>
     <div class="flex flex-col h-screen bg-gray-100">
         <EditorToolbar :can-undo="canUndo" :can-redo="canRedo" :has-selection="hasSelection"
-            :has-multiple-selection="hasMultipleSelection" @undo="undo" @redo="redo"
-            @copy="copyElements(selectedElementsArray)" @paste="handlePaste"  @remove-element="handleDelete"/>
+            :has-multiple-selection="hasMultipleSelection" @undo="undo" @redo="redo" @copy="handleCopy"
+            @paste="handlePaste" @remove-element="handleDelete" />
 
-        <AlignmentToolbar :has-selection="hasSelection" :has-multiple-selection="hasMultipleSelection" />
+        <!-- <AlignmentToolbar :has-selection="hasSelection" :has-multiple-selection="hasMultipleSelection" /> -->
 
         <div class="flex flex-1 overflow-hidden">
             <div class="flex">
@@ -388,21 +473,8 @@ onMounted(() => {
                 @drag-over="handleDragOver" />
 
             <EditorProperties v-if="selectedElement" :element="selectedElement"
-                :is-group="selectedElement.type === 'group'" :available-fonts="AVAILABLE_FONTS" :font-sizes="FONT_SIZES" :borderStyles="FONT_SIZES"
-                @update:element="updateElement" @remove-element="handleDelete" />
+                :is-group="selectedElement.type === 'group'" :available-fonts="AVAILABLE_FONTS" :font-sizes="FONT_SIZES"
+                :border-styles="BORDER_STYLES" @update:element="updateElement" @remove-element="handleDelete" />
         </div>
     </div>
 </template>
-
-<style scoped>
-.element-preview {
-    width: 100%;
-    aspect-ratio: 1;
-    border: 1px solid #e2e8f0;
-    border-radius: 0.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: move;
-}
-</style>

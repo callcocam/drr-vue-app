@@ -1,49 +1,41 @@
-// composables/useCanvas.js
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 
 export const useCanvas = () => {
     const canvasElements = ref([])
-    const nextId = ref(1)
-    const nextZIndex = ref(1)
+    const generateUniqueId = () => Date.now() + '-' + Math.random().toString(36).substr(2, 9)
 
-    const generateUniqueId = () => {
-        return nextId.value++
-    }
-
-
-    const createElement = (type, x, y, template = null) => {
-        if (type === 'template') {
-            return {
-                id: generateUniqueId(),
-                type: 'template',
-                x,
-                y,
-                width: template.width,
-                height: template.height,
-                rotation: 0,
-                zIndex: 1,
-                template: template.template,
-                backgroundColor: 'transparent',
-                borderColor: 'transparent',
-                borderWidth: 0,
-                borderStyle: 'solid',
-                borderRadius: 0
-            }
-        }
-        return {
+    const createElement = (type, x, y, templateData = null) => {
+        // Base properties for all elements
+        const baseElement = {
             id: generateUniqueId(),
             type,
             x,
             y,
-            width: 100,
-            height: 100,
             rotation: 0,
-            zIndex: 1,
-            backgroundColor: type === 'text' ? 'transparent' : '#EEEEEE',
+            zIndex: Math.max(...canvasElements.value.map(el => el.zIndex), 0) + 1,
             borderColor: '#000000',
             borderWidth: 1,
-            borderStyle: 'solid', // Adicionando estilo de borda padrão
-            borderRadius: 0,
+            borderStyle: 'solid',
+            borderRadius: 0
+        }
+
+        // Se for um template
+        if (type === 'template' && templateData) {
+            return {
+                ...baseElement,
+                width: templateData.width || 300,
+                height: templateData.height || 400,
+                backgroundColor: 'transparent',
+                template: templateData.template
+            }
+        }
+
+        // Se for um elemento regular
+        return {
+            ...baseElement,
+            width: 100,
+            height: 100,
+            backgroundColor: type === 'text' ? 'transparent' : '#EEEEEE',
             textColor: '#000000',
             fontSize: 16,
             fontFamily: 'Arial',
@@ -51,13 +43,13 @@ export const useCanvas = () => {
         }
     }
 
-    const addElement = (type, x, y) => {
-        const newElement = createElement(type, x, y)
+    const addElement = (type, x, y, templateData = null) => {
+        const newElement = createElement(type, x, y, templateData)
         canvasElements.value.push(newElement)
         return newElement
     }
 
-    const removeElements = (elementIds) => { 
+    const removeElements = (elementIds) => {
         canvasElements.value = canvasElements.value.filter(
             element => !elementIds.has(element.id)
         )
@@ -72,7 +64,6 @@ export const useCanvas = () => {
 
     return {
         canvasElements,
-        createElement,
         addElement,
         removeElements,
         updateElement

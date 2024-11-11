@@ -7,7 +7,14 @@ const { templates } = useTemplates()
 const emit = defineEmits(['template-drag-start', 'template-drag-end'])
 
 const handleDragStart = (event, template) => {
-    emit('template-drag-start', { event, template })
+    emit('template-drag-start', {
+        event,
+        template: {
+            ...template,
+            width: template.width || 300,
+            height: template.height || 400
+        }
+    })
 }
 
 const handleDragEnd = (event) => {
