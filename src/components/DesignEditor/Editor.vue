@@ -230,46 +230,131 @@ const handlePaste = () => {
     }
 }
 
-// ==================== Lifecycle Hooks ====================
-onMounted(() => {
-    const handleKeyDown = (event) => {
-        if (event.ctrlKey || event.metaKey) {
-            switch (event.key.toLowerCase()) {
-                case 'c':
-                    event.preventDefault()
-                    handleCopy()
-                    break
+// ==================== Keyboard Handlers ====================
+const MOVEMENT_STEP = 1 // Pixels por movimento
+const FAST_MOVEMENT_STEP = 10 // Pixels para movimento rápido com Shift
 
-                case 'v':
-                    event.preventDefault()
-                    handlePaste()
-                    break
+const handleKeyDown = (event) => {
+    // Se não houver elemento selecionado ou estivermos em um campo de texto, não processa
+    if (!hasSelection.value || event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+        return
+    }
 
-                case 'z':
-                    event.preventDefault()
-                    if (event.shiftKey) redo()
-                    else undo()
-                    break
+    const step = event.shiftKey ? FAST_MOVEMENT_STEP : MOVEMENT_STEP
 
-                case 'y':
-                    event.preventDefault()
-                    redo()
-                    break
+    // Manipulação básica (Delete, Copy, Paste, etc)
+    if (event.ctrlKey || event.metaKey) {
+        switch (event.key.toLowerCase()) {
+            case 'c':
+                event.preventDefault()
+                handleCopy()
+                break
 
-                case 'a':
-                    event.preventDefault()
-                    canvasElements.value.forEach(element => addToSelection(element.id))
-                    break
-            }
-        } else if (event.key === 'Delete' || event.key === 'Backspace') {
+            case 'v':
+                event.preventDefault()
+                handlePaste()
+                break
+
+            case 'x':
+                event.preventDefault()
+                handleCopy()
+                removeElements(selectedElementIds.value)
+                clearSelection()
+                saveState()
+                break
+
+            case 'z':
+                event.preventDefault()
+                if (event.shiftKey) redo()
+                else undo()
+                break
+
+            case 'y':
+                event.preventDefault()
+                redo()
+                break
+
+            case 'a':
+                event.preventDefault()
+                canvasElements.value.forEach(element => addToSelection(element.id))
+                break
+
+            case 'd':
+                event.preventDefault()
+                handleDuplicate()
+                break
+        }
+        return
+    }
+
+    // Movimento com setas
+    let dx = 0
+    let dy = 0
+
+    switch (event.key) {
+        case 'ArrowLeft':
+            event.preventDefault()
+            dx = -step
+            break
+        case 'ArrowRight':
+            event.preventDefault()
+            dx = step
+            break
+        case 'ArrowUp':
+            event.preventDefault()
+            dy = -step
+            break
+        case 'ArrowDown':
+            event.preventDefault()
+            dy = step
+            break
+        case 'Delete':
+        case 'Backspace':
             event.preventDefault()
             if (hasSelection.value) {
                 removeElements(selectedElementIds.value)
                 clearSelection()
                 saveState()
             }
-        }
+            break
     }
+
+    // Aplica o movimento se houver
+    if (dx !== 0 || dy !== 0) {
+        selectedElementsArray.value.forEach(element => {
+            element.x += dx
+            element.y += dy
+        })
+        saveState()
+    }
+}
+const generateUniqueId = () => {
+    return Date.now() + '-' + Math.random().toString(36).substr(2, 9)
+}
+
+const handleDuplicate = () => {
+    if (!hasSelection.value) return
+
+    const offset = 20
+    const maxZIndex = Math.max(...canvasElements.value.map(el => el.zIndex), 0)
+
+    const newElements = selectedElementsArray.value.map((element, index) => ({
+        ...element,
+        id: generateUniqueId(),
+        x: element.x + offset,
+        y: element.y + offset,
+        zIndex: maxZIndex + index + 1
+    }))
+
+    clearSelection()
+    canvasElements.value.push(...newElements)
+    newElements.forEach(element => addToSelection(element.id))
+    saveState()
+}
+
+// ==================== Lifecycle Hooks ====================
+onMounted(() => {
+
 
     const handleGlobalMouseMove = (event) => {
         handleMouseMove(event)
@@ -284,11 +369,15 @@ onMounted(() => {
     window.addEventListener('touchmove', handleGlobalMouseMove, { passive: true })
     window.addEventListener('touchend', handleGlobalMouseUp)
 
+    window.addEventListener('keydown', handleKeyDown)
+
     onBeforeUnmount(() => {
         window.removeEventListener('mousemove', handleGlobalMouseMove)
         window.removeEventListener('mouseup', handleGlobalMouseUp)
         window.removeEventListener('touchmove', handleGlobalMouseMove)
         window.removeEventListener('touchend', handleGlobalMouseUp)
+
+        window.removeEventListener('keydown', handleKeyDown)
     })
 })
 </script>
