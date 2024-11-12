@@ -3,16 +3,9 @@
         'element': true,
         'selected': selectedElements.has(element.id)
     }" :style="getElementStyle(element)">
-        <!-- Conteúdo específico do elemento baseado no tipo -->
-        <div class="text-content" :style="{
-            color: element.textColor,
-            fontSize: `${element.fontSize}px`,
-            fontFamily: element.fontFamily,
-        }">
-            {{ element.text }}
-        </div>
-        <!-- Controles de manipulação -->
-        
+        <div class="template-content" v-html="element.template" />
+ccc
+        <!-- Controles de manipulação para templates -->
        <slot />
     </div>
 </template>
@@ -27,7 +20,8 @@ const props = defineProps({
         type: Set,
         required: true
     }
-}) 
+})
+ 
 
 const { getElementStyle } = useElementInteraction()
  

@@ -6,6 +6,7 @@ export const useTemplates = () => {
         {
             id: 'profile-card',
             type: 'template',
+            name: 'ProfileCard',
             label: 'Cartão de Perfil',
             width: 300,
             height: 400,

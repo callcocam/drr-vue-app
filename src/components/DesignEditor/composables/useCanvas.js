@@ -16,7 +16,8 @@ export const useCanvas = () => {
             borderColor: '#000000',
             borderWidth: 1,
             borderStyle: 'solid',
-            borderRadius: 0
+            borderRadius: 0,
+            lineHeight: '1.5',
         }
 
         // Se for um template
