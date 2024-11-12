@@ -15,8 +15,8 @@ const props = defineProps({
         default: null,
     },
     guides: {
-        type: Object,
-        required: true,
+        type: Array,
+        default: () => []
     },
     dragPreview: {
         type: Object,
@@ -127,6 +127,7 @@ const getElementStyle = (element) => {
         zIndex: element.zIndex,
     }
 }
+console.log(props.guides)
 </script>
 
 <template>
@@ -134,7 +135,6 @@ const getElementStyle = (element) => {
         @dragover="handleDragOver" @drop="handleDrop">
         <!-- Grid de fundo -->
         <div class="grid-background" />
-
         <!-- Elementos do canvas -->
         <template v-for="element in elements" :key="element.id">
             <!-- Template Element -->
@@ -188,24 +188,18 @@ const getElementStyle = (element) => {
         }" />
 
         <!-- Guias de alinhamento -->
-        <template v-if="guides">
-            <div v-for="(guide, index) in guides.vertical" :key="`v-${index}`" class="guide vertical" :style="{
-                position: 'absolute',
-                left: `${guide.position}px`,
-                top: 0,
-                width: '1px',
-                height: '100%',
-                backgroundColor: '#1a73e8',
-            }" />
-            <div v-for="(guide, index) in guides.horizontal" :key="`h-${index}`" class="guide horizontal" :style="{
-                position: 'absolute',
-                left: 0,
-                top: `${guide.position}px`,
-                width: '100%',
-                height: '1px',
-                backgroundColor: '#1a73e8',
-            }" />
-        </template>
+        <div class="guides" aria-hidden="true">
+            <template v-for="(guide, index) in guides" :key="`${guide.type}-${guide.position}-${index}`">
+                <div class="guide" :class="[
+                    guide.type,
+                    guide.className
+                ]" :style="{
+                    [guide.type === 'vertical' ? 'left' : 'top']: `${guide.position}px`,
+                    [guide.type === 'vertical' ? 'height' : 'width']: `${guide.end - guide.start}px`,
+                    [guide.type === 'vertical' ? 'top' : 'left']: `${guide.start}px`
+                }" />
+            </template>
+        </div>
 
         <!-- Bounds da seleção múltipla -->
         <template v-if="selectionBounds">
@@ -298,9 +292,46 @@ const getElementStyle = (element) => {
     cursor: pointer;
 }
 
-.guide {
+.guides {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     pointer-events: none;
-    z-index: 1000;
+    z-index: 9999;
+}
+
+.guide {
+    position: absolute;
+    background-color: #4299e1;
+    pointer-events: none;
+}
+
+.guide.vertical {
+    width: 1px;
+}
+
+.guide.horizontal {
+    height: 1px;
+}
+
+.guide-center {
+    background-color: #48bb78;
+}
+
+.guide-left,
+.guide-right,
+.guide-top,
+.guide-bottom {
+    background-color: #4299e1;
+}
+
+.guide-left-to-right,
+.guide-right-to-left,
+.guide-top-to-bottom,
+.guide-bottom-to-top {
+    background-color: #9f7aea;
 }
 
 .selection-bounds {

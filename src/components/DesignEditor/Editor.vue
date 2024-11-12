@@ -12,7 +12,7 @@ import { useSelection } from '@/components/DesignEditor/composables/useSelection
 import { useHistory } from '@/components/DesignEditor/composables/useHistory'
 import { useInteraction } from '@/components/DesignEditor/composables/useInteraction'
 import { useClipboard } from '@/components/DesignEditor/composables/useClipboard'
-import { useGuides } from '@/components/DesignEditor/composables/useGuides'
+import { useSmartGuides } from '@/components/DesignEditor/composables/useSmartGuides'
 import { useEventUtils } from '@/components/DesignEditor/composables/useEventUtils'
 import { useKeyboardShortcuts } from '@/components/DesignEditor/composables/useKeyboardShortcuts'
 import { debugLog } from '@/components/DesignEditor/utils/debug'
@@ -48,7 +48,10 @@ const { interaction, startMove, startResize, startRotate, resetInteraction } = u
 
 const { canUndo, canRedo, saveState, undo, redo } = useHistory(canvasElements, selectedElementIds)
 const { clipboard, copyElements, pasteElements } = useClipboard()
-const { guides, updateGuides, clearGuides } = useGuides()
+const {
+    guides,
+    updateGuides,
+    clearGuides } = useSmartGuides()
 
 // ==================== Computed Properties ====================
 const selectedElementsArray = computed(() => {
@@ -179,7 +182,7 @@ const handleMouseMove = (event) => {
             }
         })
 
-        if (typeof updateGuides === 'function') {
+        if (typeof updateGuides === 'function') { // Atualiza as guias de alinhamento
             updateGuides(selectedElementIds.value, selectedElementsArray.value, canvasElements.value)
         }
     }
