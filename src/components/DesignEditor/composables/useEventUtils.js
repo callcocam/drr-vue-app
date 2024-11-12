@@ -1,27 +1,37 @@
 // composables/useEventUtils.js
 export const useEventUtils = () => {
     const getEventPosition = (event) => {
-        // Verifica se é um evento de touch
-        if (event.touches) {
+        if (!event) return null
+
+        // Suporte para touch events
+        if (event.touches && event.touches[0]) {
             return {
                 clientX: event.touches[0].clientX,
                 clientY: event.touches[0].clientY
             }
         }
-        // Se não for touch, é um evento de mouse
-        return {
-            clientX: event.clientX,
-            clientY: event.clientY
+
+        // Mouse events
+        if (event.clientX !== undefined && event.clientY !== undefined) {
+            return {
+                clientX: event.clientX,
+                clientY: event.clientY
+            }
         }
+
+        return null
     }
 
-    // Função para obter a posição relativa ao canvas
     const getCanvasPosition = (event, canvasRef) => {
+        if (!event || !canvasRef) return null
+
         const rect = canvasRef.getBoundingClientRect()
-        const position = getEventPosition(event)
+        const pos = getEventPosition(event)
+        if (!pos) return null
+
         return {
-            x: position.clientX - rect.left,
-            y: position.clientY - rect.top
+            x: pos.clientX - rect.left,
+            y: pos.clientY - rect.top
         }
     }
 

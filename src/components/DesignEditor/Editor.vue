@@ -5,7 +5,7 @@ import TemplateSidebar from './components/TemplateSidebar.vue'
 import EditorCanvas from './components/EditorCanvas.vue'
 import EditorProperties from './components/EditorProperties.vue'
 import EditorToolbar from './components/EditorToolbar.vue'
-import AlignmentToolbar from './components/AlignmentToolbar.vue'
+// import AlignmentToolbar from './components/AlignmentToolbar.vue'
 
 import { useCanvas } from '@/components/DesignEditor/composables/useCanvas'
 import { useSelection } from '@/components/DesignEditor/composables/useSelection'
@@ -14,35 +14,12 @@ import { useInteraction } from '@/components/DesignEditor/composables/useInterac
 import { useClipboard } from '@/components/DesignEditor/composables/useClipboard'
 import { useGuides } from '@/components/DesignEditor/composables/useGuides'
 import { useEventUtils } from '@/components/DesignEditor/composables/useEventUtils'
+import { useKeyboardShortcuts } from '@/components/DesignEditor/composables/useKeyboardShortcuts'
+import { debugLog } from '@/components/DesignEditor/utils/debug'
+import { EDITOR_CONFIG } from '@/components/DesignEditor/config/editorConfig'
 
 // ==================== Configurações ====================
 const activeTab = ref('elements')
-
-const AVAILABLE_ELEMENTS = [
-    { type: 'rectangle', label: 'Retângulo' },
-    { type: 'circle', label: 'Círculo' },
-    { type: 'text', label: 'Texto' }
-]
-
-const AVAILABLE_FONTS = [
-    { value: 'Arial', label: 'Arial' },
-    { value: 'Times New Roman', label: 'Times New Roman' },
-    { value: 'Helvetica', label: 'Helvetica' },
-    { value: 'Georgia', label: 'Georgia' },
-    { value: 'Verdana', label: 'Verdana' },
-    { value: 'Courier New', label: 'Courier New' }
-]
-
-const FONT_SIZES = [
-    8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72
-]
-
-const BORDER_STYLES = [
-    { value: 'solid', label: 'Sólida' },
-    { value: 'dashed', label: 'Tracejada' },
-    { value: 'dotted', label: 'Pontilhada' },
-    { value: 'double', label: 'Dupla' }
-]
 
 // ==================== Estado Local ====================
 const dragPreview = ref({
@@ -63,7 +40,7 @@ const {
     removeFromSelection
 } = useSelection()
 
-const { getEventPosition, getCanvasPosition } = useEventUtils()
+const { getEventPosition } = useEventUtils()
 
 const { interaction, startMove, startResize, startRotate, resetInteraction } = useInteraction(
     { getEventPosition }
@@ -109,7 +86,7 @@ const selectionBounds = computed(() => {
 // ==================== Event Handlers ====================
 const handleElementSelect = (element, event) => {
     if (!element) return
-
+    debugLog('Element selected:', { element })
     // Primeiro faz a seleção
     selectElement(element, event)
 }
@@ -134,6 +111,9 @@ const handleElementMouseDown = (element, event) => {
 
 const handleDragStart = ({ event, element }) => {
     if (!event?.dataTransfer || !element) return
+
+    debugLog('Drag start:', { element })
+
     event.dataTransfer.setData('text/plain', element.type)
     dragPreview.value.visible = true
 }
@@ -254,9 +234,20 @@ const handleTemplateDragStart = ({ event, template }) => {
 const handleTemplateDragEnd = () => {
     dragPreview.value.visible = false
 }
+
+// ==================== Keyboard Handlers ====================
 const handleCopy = () => {
     if (hasSelection.value && selectedElementsArray.value.length > 0) {
         copyElements(selectedElementsArray.value)
+    }
+}
+
+const handleCut = () => {
+    if (hasSelection.value && selectedElementsArray.value.length > 0) {
+        copyElements(selectedElementsArray.value)
+        removeElements(selectedElementIds.value)
+        clearSelection()
+        saveState()
     }
 }
 
@@ -279,104 +270,6 @@ const handleDelete = () => {
     }
 }
 
-// ==================== Keyboard Handlers ====================
-const MOVEMENT_STEP = 1 // Pixels por movimento
-const FAST_MOVEMENT_STEP = 10 // Pixels para movimento rápido com Shift
-
-const handleKeyDown = (event) => {
-    // Se não houver elemento selecionado ou estivermos em um campo de texto, não processa
-    if (!hasSelection.value || event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
-        return
-    }
-
-    const step = event.shiftKey ? FAST_MOVEMENT_STEP : MOVEMENT_STEP
-
-    // Manipulação básica (Delete, Copy, Paste, etc)
-    if (event.ctrlKey || event.metaKey) {
-        switch (event.key.toLowerCase()) {
-            case 'c':
-                event.preventDefault()
-                handleCopy()
-                break
-
-            case 'v':
-                event.preventDefault()
-                handlePaste()
-                break
-
-            case 'x':
-                event.preventDefault()
-                handleCopy()
-                removeElements(selectedElementIds.value)
-                clearSelection()
-                saveState()
-                break
-
-            case 'z':
-                event.preventDefault()
-                if (event.shiftKey) redo()
-                else undo()
-                break
-
-            case 'y':
-                event.preventDefault()
-                redo()
-                break
-
-            case 'a':
-                event.preventDefault()
-                canvasElements.value.forEach(element => addToSelection(element.id))
-                break
-
-            case 'd':
-                event.preventDefault()
-                handleDuplicate()
-                break
-        }
-        return
-    }
-
-    // Movimento com setas
-    let dx = 0
-    let dy = 0
-
-    switch (event.key) {
-        case 'ArrowLeft':
-            event.preventDefault()
-            dx = -step
-            break
-        case 'ArrowRight':
-            event.preventDefault()
-            dx = step
-            break
-        case 'ArrowUp':
-            event.preventDefault()
-            dy = -step
-            break
-        case 'ArrowDown':
-            event.preventDefault()
-            dy = step
-            break
-        case 'Delete':
-        case 'Backspace':
-            event.preventDefault()
-            if (hasSelection.value) {
-                removeElements(selectedElementIds.value)
-                clearSelection()
-                saveState()
-            }
-            break
-    }
-
-    // Aplica o movimento se houver
-    if (dx !== 0 || dy !== 0) {
-        selectedElementsArray.value.forEach(element => {
-            element.x += dx
-            element.y += dy
-        })
-        saveState()
-    }
-}
 const generateUniqueId = () => {
     return Date.now() + '-' + Math.random().toString(36).substr(2, 9)
 }
@@ -401,6 +294,101 @@ const handleDuplicate = () => {
     saveState()
 }
 
+
+const bringToFront = () => {
+    if (!hasSelection.value) return
+
+    const maxZIndex = Math.max(...canvasElements.value.map(el => el.zIndex), 0)
+
+    selectedElementsArray.value.forEach((element, index) => {
+        updateElement({
+            ...element,
+            zIndex: maxZIndex + index + 1
+        })
+    })
+    saveState()
+}
+
+const sendToBack = () => {
+    if (!hasSelection.value) return
+
+    const minZIndex = Math.min(...canvasElements.value.map(el => el.zIndex), 0)
+
+    selectedElementsArray.value.forEach((element, index) => {
+        updateElement({
+            ...element,
+            zIndex: minZIndex - selectedElementsArray.value.length + index
+        })
+    })
+    saveState()
+}
+
+const bringForward = () => {
+    if (!hasSelection.value) return
+
+    const sortedElements = [...canvasElements.value].sort((a, b) => a.zIndex - b.zIndex)
+    const selectedIds = new Set(selectedElementIds.value)
+
+    selectedElementsArray.value.forEach(element => {
+        const currentIndex = sortedElements.findIndex(el => el.id === element.id)
+        const nextElement = sortedElements[currentIndex + 1]
+
+        if (nextElement && !selectedIds.has(nextElement.id)) {
+            const newZIndex = nextElement.zIndex + 1
+            updateElement({
+                ...element,
+                zIndex: newZIndex
+            })
+
+            // Update the sorted array to maintain correct order
+            sortedElements.splice(currentIndex, 1)
+            sortedElements.splice(currentIndex + 1, 0, { ...element, zIndex: newZIndex })
+        }
+    })
+    saveState()
+}
+
+const sendBackward = () => {
+    if (!hasSelection.value) return
+
+    const sortedElements = [...canvasElements.value].sort((a, b) => b.zIndex - a.zIndex)
+    const selectedIds = new Set(selectedElementIds.value)
+
+    selectedElementsArray.value.forEach(element => {
+        const currentIndex = sortedElements.findIndex(el => el.id === element.id)
+        const previousElement = sortedElements[currentIndex + 1]
+
+        if (previousElement && !selectedIds.has(previousElement.id)) {
+            const newZIndex = previousElement.zIndex - 1
+            updateElement({
+                ...element,
+                zIndex: newZIndex
+            })
+
+            // Update the sorted array to maintain correct order
+            sortedElements.splice(currentIndex, 1)
+            sortedElements.splice(currentIndex + 1, 0, { ...element, zIndex: newZIndex })
+        }
+    })
+    saveState()
+}
+
+const { setupKeyboardShortcuts } = useKeyboardShortcuts({
+    undo,
+    redo,
+    handleCopy,
+    handlePaste,
+    handleCut,
+    handleDelete,
+    handleDuplicate,
+    addToSelection,
+    canvasElements,
+    selectedElementsArray,
+    bringToFront,
+    sendToBack,
+    bringForward,
+    sendBackward
+})
 // ==================== Lifecycle Hooks ====================
 onMounted(() => {
 
@@ -418,7 +406,9 @@ onMounted(() => {
     window.addEventListener('touchmove', handleGlobalMouseMove, { passive: true })
     window.addEventListener('touchend', handleGlobalMouseUp)
 
-    window.addEventListener('keydown', handleKeyDown)
+    // window.addEventListener('keydown', handleKeyDown)
+
+    setupKeyboardShortcuts()
 
     onBeforeUnmount(() => {
         window.removeEventListener('mousemove', handleGlobalMouseMove)
@@ -435,7 +425,8 @@ onMounted(() => {
     <div class="flex flex-col h-screen bg-gray-100">
         <EditorToolbar :can-undo="canUndo" :can-redo="canRedo" :has-selection="hasSelection"
             :has-multiple-selection="hasMultipleSelection" @undo="undo" @redo="redo" @copy="handleCopy"
-            @paste="handlePaste" @remove-element="handleDelete" />
+            @paste="handlePaste" @remove-element="handleDelete" @bring-to-front="bringToFront"
+            @send-to-back="sendToBack" @bring-forward="bringForward" @send-backward="sendBackward" />
 
         <!-- <AlignmentToolbar :has-selection="hasSelection" :has-multiple-selection="hasMultipleSelection" /> -->
 
@@ -456,8 +447,9 @@ onMounted(() => {
                         </button>
                     </div>
 
-                    <EditorSidebar v-if="activeTab === 'elements'" :available-elements="AVAILABLE_ELEMENTS"
-                        @element-drag-start="handleDragStart" @element-drag-end="handleDragEnd" />
+                    <EditorSidebar v-if="activeTab === 'elements'"
+                        :available-elements="EDITOR_CONFIG.AVAILABLE_ELEMENTS" @element-drag-start="handleDragStart"
+                        @element-drag-end="handleDragEnd" />
 
                     <TemplateSidebar v-else @template-drag-start="handleTemplateDragStart"
                         @template-drag-end="handleTemplateDragEnd" />
@@ -473,8 +465,9 @@ onMounted(() => {
                 @drag-over="handleDragOver" />
 
             <EditorProperties v-if="selectedElement" :element="selectedElement"
-                :is-group="selectedElement.type === 'group'" :available-fonts="AVAILABLE_FONTS" :font-sizes="FONT_SIZES"
-                :border-styles="BORDER_STYLES" @update:element="updateElement" @remove-element="handleDelete" />
+                :is-group="selectedElement.type === 'group'" :available-fonts="EDITOR_CONFIG.AVAILABLE_FONTS"
+                :font-sizes="EDITOR_CONFIG.FONT_SIZES" :border-styles="EDITOR_CONFIG.BORDER_STYLES"
+                @update:element="updateElement" @remove-element="handleDelete" />
         </div>
     </div>
 </template>
