@@ -1,9 +1,10 @@
 <template>
     <div class="flex flex-col h-screen bg-gray-100">
         <EditorToolbar :can-undo="canUndo" :can-redo="canRedo" :has-selection="hasSelection"
-            :has-multiple-selection="hasMultipleSelection" @undo="undo" @redo="redo" @copy="handleCopy"
-            @paste="handlePaste" @remove-element="handleDelete" @bring-to-front="bringToFront"
-            @send-to-back="sendToBack" @bring-forward="bringForward" @send-backward="sendBackward" />
+            :has-multiple-selection="hasMultipleSelection" :is-saving="isSaving" :is-loading="isLoading" @undo="undo"
+            @redo="redo" @save="handleSaveProject" @load="handleLoadProject" @export="exportToFile"
+            @import="(file) => importFromFile(file)" @copy="handleCopy" @paste="handlePaste"
+            @remove-element="handleDelete" @bring-forward="bringForward" @send-backward="sendBackward" />
 
         <CanvasControls v-model:width="canvasWidth" v-model:height="canvasHeight" v-model:zoom="canvasZoom" />
         <!-- <AlignmentToolbar :has-selection="hasSelection" :has-multiple-selection="hasMultipleSelection" /> -->
@@ -69,6 +70,7 @@ import { useClipboard } from '@/components/DesignEditor/composables/useClipboard
 import { useSmartGuides } from '@/components/DesignEditor/composables/useSmartGuides'
 import { useEventUtils } from '@/components/DesignEditor/composables/useEventUtils'
 import { useKeyboardShortcuts } from '@/components/DesignEditor/composables/useKeyboardShortcuts'
+import { usePersistence } from '@/components/DesignEditor/composables/usePersistence'
 import { debugLog } from '@/components/DesignEditor/utils/debug'
 import { EDITOR_CONFIG } from '@/components/DesignEditor/config/editorConfig'
 
@@ -93,6 +95,17 @@ const dragPreview = ref({
 
 // ==================== Composables ====================
 const { canvasElements, addElement, removeElements, updateElement } = useCanvas()
+
+// Adicione o composable com as referências necessárias
+const {
+    saveToAPI,
+    loadFromAPI,
+    exportToFile,
+    importFromFile,
+    isSaving,
+    isLoading
+} = usePersistence(canvasElements, canvasWidth, canvasHeight, canvasZoom)
+
 const {
     selectedElementIds,
     hasSelection,
@@ -115,6 +128,28 @@ const {
     guides,
     updateGuides,
     clearGuides } = useSmartGuides()
+
+// Exemplo de função para salvar o projeto
+const handleSaveProject = async () => {
+    try {
+        await saveToAPI('/api/projects/123')  // Substitua pela sua URL
+        // Mostrar mensagem de sucesso
+    } catch (error) {
+        // Mostrar mensagem de erro
+        console.error('Failed to save project:', error)
+    }
+}
+
+// Exemplo de função para carregar um projeto
+const handleLoadProject = async (projectId) => {
+    try {
+        await loadFromAPI(`/api/projects/${projectId}`)
+        // Mostrar mensagem de sucesso
+    } catch (error) {
+        // Mostrar mensagem de erro
+        console.error('Failed to load project:', error)
+    }
+}
 
 // ==================== Computed Properties ====================
 const selectedElementsArray = computed(() => {

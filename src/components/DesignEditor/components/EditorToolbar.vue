@@ -5,7 +5,9 @@ const props = defineProps({
     hasSelection: Boolean,
     hasMultipleSelection: Boolean,
     canGroup: Boolean,
-    isGroup: Boolean
+    isGroup: Boolean,
+    isSaving: Boolean,
+    isLoading: Boolean
 })
 
 const emit = defineEmits([
@@ -19,9 +21,26 @@ const emit = defineEmits([
     'bring-to-front',
     'send-to-back',
     'bring-forward',
-    'send-backward'
+    'send-backward',
+    'save',
+    'load',
+    'export',
+    'import'
 ])
 
+// Handler para importar arquivo
+const handleImportClick = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json'
+    input.onchange = (e) => {
+        const file = e.target.files?.[0]
+        if (file) {
+            emit('import', file)
+        }
+    }
+    input.click()
+}
 </script>
 
 <template>
@@ -47,9 +66,50 @@ const emit = defineEmits([
             </button>
         </div>
 
-        <!-- New Z-Index Controls -->
-        <div class="flex items-center space-x-2  border-r pr-2">
+        <!-- Salvar/Carregar/Exportar/Importar -->
+        <div class="flex items-center gap-1 border-r pr-2">
+            <button
+                class="p-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                :disabled="isSaving" @click="$emit('save')" title="Salvar Projeto">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M17 21v-8H7v8M7 3v5h8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <span v-if="isSaving"
+                    class="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin ml-2"></span>
+            </button>
 
+            <button
+                class="p-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                :disabled="isLoading" @click="$emit('load')" title="Carregar Projeto">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <span v-if="isLoading"
+                    class="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin ml-2"></span>
+            </button>
+
+            <button class="p-2 rounded hover:bg-gray-100 transition-colors" @click="$emit('export')"
+                title="Exportar para JSON">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </button>
+
+            <button class="p-2 rounded hover:bg-gray-100 transition-colors" @click="handleImportClick"
+                title="Importar de JSON">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5-5 5 5M12 4v12" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- New Z-Index Controls -->
+        <div class="flex items-center space-x-2 border-r pr-2">
             <button class="p-1 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 :disabled="!hasSelection" @click="$emit('bring-forward')" title="Trazer para frente (Ctrl+])">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none"
@@ -68,6 +128,7 @@ const emit = defineEmits([
                 </svg>
             </button>
         </div>
+
         <!-- Copiar/Colar -->
         <div class="flex items-center gap-1 border-r pr-2">
             <button
