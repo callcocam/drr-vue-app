@@ -2,9 +2,9 @@
 
 export const EDITOR_CONFIG = {
     AVAILABLE_ELEMENTS: [
-        { type: 'rectangle', label: 'Retângulo' },
-        { type: 'circle', label: 'Círculo' },
-        { type: 'text', label: 'Texto' }
+        { type: 'rectangle', label: 'Retângulo', name: 'Retangle' },
+        { type: 'circle', label: 'Círculo', name: 'Circle' },
+        { type: 'text', label: 'Texto', name: 'Text' }
     ],
 
     AVAILABLE_FONTS: [

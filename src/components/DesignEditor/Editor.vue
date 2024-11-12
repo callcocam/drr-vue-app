@@ -20,6 +20,8 @@ import { EDITOR_CONFIG } from '@/components/DesignEditor/config/editorConfig'
 
 // ==================== Configurações ====================
 const activeTab = ref('elements')
+// Adicione aos refs
+const editingElementId = ref(null)
 
 // ==================== Estado Local ====================
 const dragPreview = ref({
@@ -87,6 +89,25 @@ const selectionBounds = computed(() => {
 })
 
 // ==================== Event Handlers ====================
+const handleStartEdit = (element) => {
+    editingElementId.value = element.id
+    // Desativa temporariamente os atalhos de teclado durante a edição
+    if (typeof disableKeyboardShortcuts === 'function') {
+        disableKeyboardShortcuts()
+    }
+}
+
+const handleEndEdit = (element, saveChanges) => {
+    if (saveChanges) {
+        saveState()
+    }
+    editingElementId.value = null
+    // Reativa os atalhos de teclado
+    if (typeof enableKeyboardShortcuts === 'function') {
+        enableKeyboardShortcuts()
+    }
+}
+
 const handleElementSelect = (element, event) => {
     if (!element) return
     debugLog('Element selected:', { element })
@@ -387,6 +408,7 @@ const { setupKeyboardShortcuts } = useKeyboardShortcuts({
     addToSelection,
     canvasElements,
     selectedElementsArray,
+    editingElementId,
     bringToFront,
     sendToBack,
     bringForward,
@@ -418,8 +440,7 @@ onMounted(() => {
         window.removeEventListener('mouseup', handleGlobalMouseUp)
         window.removeEventListener('touchmove', handleGlobalMouseMove)
         window.removeEventListener('touchend', handleGlobalMouseUp)
-
-        window.removeEventListener('keydown', handleKeyDown)
+  
     })
 })
 </script>

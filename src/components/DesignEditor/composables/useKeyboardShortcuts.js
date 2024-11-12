@@ -16,6 +16,7 @@ export function useKeyboardShortcuts({
     addToSelection,
     canvasElements,
     selectedElementsArray,
+    editingElementId,
     bringToFront,
     sendToBack,
     bringForward,
@@ -53,6 +54,7 @@ export function useKeyboardShortcuts({
     }
 
     const handleKeyboardShortcut = (event) => {
+        if (editingElementId.value) return // Ignora atalhos se estiver editando texto
         // Ignora eventos de teclado em campos de input
         if (isInputElement(event.target)) return
 
@@ -92,6 +94,22 @@ export function useKeyboardShortcuts({
         if (['Delete', 'Backspace'].includes(event.key)) {
             event.preventDefault()
             handleDelete()
+        }
+        if (event.ctrlKey && event.shiftKey && event.key === ']') {
+            event.preventDefault()
+            bringToFront()
+        }
+        if (event.ctrlKey && event.shiftKey && event.key === '[') {
+            event.preventDefault()
+            sendToBack()
+        }
+        if (event.ctrlKey && !event.shiftKey && event.key === ']') {
+            event.preventDefault()
+            bringForward()
+        }
+        if (event.ctrlKey && !event.shiftKey && event.key === '[') {
+            event.preventDefault()
+            sendBackward()
         }
     }
 
